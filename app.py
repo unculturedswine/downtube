@@ -4,13 +4,95 @@
 import json
 import os
 import re
+import shutil
 import subprocess
+import sys
 import threading
 import time
 import uuid
 from pathlib import Path
 
-from flask import Flask, Response, jsonify, render_template_string, request
+
+def check_dependencies():
+    """Check for required external tools and offer to install missing ones."""
+    missing = []
+
+    if not shutil.which("yt-dlp"):
+        missing.append(("yt-dlp", "brew install yt-dlp", "pip install yt-dlp"))
+
+    if not shutil.which("ffmpeg"):
+        missing.append(("ffmpeg", "brew install ffmpeg", None))
+
+    if not missing:
+        return
+
+    print("\n  Missing dependencies detected:\n")
+    for name, brew_cmd, pip_cmd in missing:
+        print(f"    - {name}")
+
+    # Check if Homebrew is available
+    has_brew = shutil.which("brew") is not None
+
+    for name, brew_cmd, pip_cmd in missing:
+        print(f"\n  Install {name}?")
+        if has_brew:
+            print(f"    [1] {brew_cmd} (recommended)")
+            if pip_cmd:
+                print(f"    [2] {pip_cmd}")
+            print(f"    [s] Skip")
+            choice = input(f"\n  Choice [1]: ").strip().lower() or "1"
+        elif pip_cmd:
+            print(f"    [1] {pip_cmd}")
+            print(f"    [s] Skip")
+            choice = input(f"\n  Choice [1]: ").strip().lower() or "1"
+        else:
+            print(f"    Please install manually: {brew_cmd}")
+            print(f"    [s] Skip (continue anyway)")
+            choice = input(f"\n  Choice [s]: ").strip().lower() or "s"
+
+        if choice == "s":
+            print(f"  Skipping {name} — some features may not work.\n")
+            continue
+
+        if choice == "1":
+            cmd = brew_cmd if has_brew else (pip_cmd or brew_cmd)
+        elif choice == "2" and pip_cmd:
+            cmd = pip_cmd
+        else:
+            cmd = brew_cmd if has_brew else (pip_cmd or brew_cmd)
+
+        print(f"\n  Running: {cmd}")
+        result = subprocess.run(cmd.split(), capture_output=False)
+        if result.returncode != 0:
+            print(f"  Failed to install {name}. Please install manually and try again.")
+            sys.exit(1)
+        print(f"  {name} installed successfully!")
+
+    print()
+
+
+# Check for Flask (handle case where script is run without venv/flask)
+try:
+    from flask import Flask, Response, jsonify, render_template_string, request
+except ImportError:
+    print("\n  Flask is not installed.")
+    print("  Setting up virtual environment...\n")
+
+    venv_dir = Path(__file__).parent / ".venv"
+    if not venv_dir.exists():
+        print(f"  Creating venv at {venv_dir}")
+        subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], check=True)
+
+    pip_path = venv_dir / "bin" / "pip"
+    print("  Installing Flask...")
+    subprocess.run([str(pip_path), "install", "flask"], check=True)
+
+    # Re-exec with the venv Python
+    python_path = venv_dir / "bin" / "python"
+    print(f"\n  Restarting with venv Python...\n")
+    os.execv(str(python_path), [str(python_path)] + sys.argv)
+
+check_dependencies()
 
 app = Flask(__name__)
 
