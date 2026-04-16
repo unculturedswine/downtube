@@ -534,12 +534,39 @@ HTML_TEMPLATE = r"""
     font-size: 0.85rem;
     margin-top: 0.5rem;
   }
-  #download-dir {
+  #download-dir, #pf-download-dir {
     font-size: 0.75rem;
     color: var(--text-dim);
     margin-top: 0.5rem;
     word-break: break-all;
   }
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    padding: 0.7rem 1.25rem;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 0;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tab:hover { color: var(--text); background: none; }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
 </style>
 </head>
 <body>
@@ -552,75 +579,118 @@ HTML_TEMPLATE = r"""
     <button class="settings-btn" onclick="openSettings()" title="Settings">&#9881;</button>
   </header>
 
-  <!-- URL + Cookie Browser -->
-  <div class="card">
-    <h2>URL</h2>
-    <div class="input-row">
-      <input type="text" id="url" placeholder="Paste video URL here..." autofocus>
-      <button id="fetch-btn" onclick="fetchInfo()">Fetch</button>
-    </div>
-    <div class="options-row">
-      <label>
-        Cookies from browser
-        <select id="cookie-browser">
-          <option value="brave" selected>Brave</option>
-          <option value="chrome">Chrome</option>
-          <option value="firefox">Firefox</option>
-          <option value="safari">Safari</option>
-          <option value="edge">Edge</option>
-          <option value="">None</option>
-        </select>
-      </label>
-    </div>
-    <div id="fetch-error" class="error-msg hidden"></div>
+  <!-- Tab Nav -->
+  <div class="tabs">
+    <button class="tab active" data-tab="ytdlp" onclick="switchTab(this)">YouTube / yt-dlp</button>
+    <button class="tab" data-tab="pokeflix" onclick="switchTab(this)">Pokeflix</button>
   </div>
 
-  <!-- Video Info + Options (hidden until fetched) -->
-  <div id="info-card" class="card hidden">
-    <h2>Video Info</h2>
-    <div class="video-info">
-      <img id="thumb" src="" alt="">
-      <div class="meta">
-        <h3 id="title"></h3>
-        <p id="channel"></p>
-        <p id="duration"></p>
+  <!-- yt-dlp Tab -->
+  <div class="tab-pane active" id="pane-ytdlp">
+    <!-- URL + Cookie Browser -->
+    <div class="card">
+      <h2>URL</h2>
+      <div class="input-row">
+        <input type="text" id="url" placeholder="Paste video URL here..." autofocus>
+        <button id="fetch-btn" onclick="fetchInfo()">Fetch</button>
+      </div>
+      <div class="options-row">
+        <label>
+          Cookies from browser
+          <select id="cookie-browser">
+            <option value="brave" selected>Brave</option>
+            <option value="chrome">Chrome</option>
+            <option value="firefox">Firefox</option>
+            <option value="safari">Safari</option>
+            <option value="edge">Edge</option>
+            <option value="">None</option>
+          </select>
+        </label>
+      </div>
+      <div id="fetch-error" class="error-msg hidden"></div>
+    </div>
+
+    <!-- Video Info + Options (hidden until fetched) -->
+    <div id="info-card" class="card hidden">
+      <h2>Video Info</h2>
+      <div class="video-info">
+        <img id="thumb" src="" alt="">
+        <div class="meta">
+          <h3 id="title"></h3>
+          <p id="channel"></p>
+          <p id="duration"></p>
+        </div>
+      </div>
+
+      <h2 style="margin-top:1.25rem;">Download Mode</h2>
+      <div class="mode-buttons">
+        <div class="mode-btn active" data-mode="video+audio" onclick="setMode(this)">Video + Audio</div>
+        <div class="mode-btn" data-mode="video" onclick="setMode(this)">Video Only</div>
+        <div class="mode-btn" data-mode="audio" onclick="setMode(this)">Audio Only</div>
+      </div>
+
+      <div class="options-row">
+        <label id="quality-label">
+          Quality
+          <select id="quality"></select>
+        </label>
+        <label id="audio-format-label" class="hidden">
+          Audio Format
+          <select id="audio-format">
+            <option value="mp3">MP3</option>
+            <option value="m4a">M4A</option>
+            <option value="opus">Opus</option>
+            <option value="best">Best</option>
+          </select>
+        </label>
+      </div>
+
+      <div style="margin-top:1rem;">
+        <button id="download-btn" onclick="startDownload()">Download</button>
+      </div>
+      <div id="download-dir"></div>
+
+      <div id="progress" class="progress-container">
+        <div style="font-size:0.85rem;"><span class="spinner"></span><span id="progress-status">Downloading...</span></div>
+        <div class="progress-bar-outer"><div id="progress-bar" class="progress-bar-inner"></div></div>
+        <div class="progress-text">
+          <span id="progress-pct">0%</span>
+          <span id="progress-speed"></span>
+        </div>
       </div>
     </div>
+  </div>
 
-    <h2 style="margin-top:1.25rem;">Download Mode</h2>
-    <div class="mode-buttons">
-      <div class="mode-btn active" data-mode="video+audio" onclick="setMode(this)">Video + Audio</div>
-      <div class="mode-btn" data-mode="video" onclick="setMode(this)">Video Only</div>
-      <div class="mode-btn" data-mode="audio" onclick="setMode(this)">Audio Only</div>
-    </div>
+  <!-- Pokeflix Tab -->
+  <div class="tab-pane" id="pane-pokeflix">
+    <div class="card">
+      <h2>Pokeflix Stream Download</h2>
+      <div style="font-size:0.8rem; color:var(--text-dim); margin-bottom:1rem; line-height:1.5;">
+        Open the video on <a href="https://www.pokeflix.tv" target="_blank" style="color:var(--blue);">pokeflix.tv</a>, open DevTools &rarr; Network, filter for <code>.m3u8</code>, and paste the stream URL below.
+      </div>
 
-    <div class="options-row">
-      <label id="quality-label">
-        Quality
-        <select id="quality"></select>
-      </label>
-      <label id="audio-format-label" class="hidden">
-        Audio Format
-        <select id="audio-format">
-          <option value="mp3">MP3</option>
-          <option value="m4a">M4A</option>
-          <option value="opus">Opus</option>
-          <option value="best">Best</option>
-        </select>
-      </label>
-    </div>
+      <div class="field" style="margin-bottom:1rem;">
+        <label style="display:block; font-size:0.8rem; color:var(--text-dim); margin-bottom:0.35rem;">Title (used for filename)</label>
+        <input type="text" id="pf-title" placeholder="e.g. Pokemon Movie - White - Victini and Zekrom" style="width:100%;">
+      </div>
 
-    <div style="margin-top:1rem;">
-      <button id="download-btn" onclick="startDownload()">Download</button>
-    </div>
-    <div id="download-dir"></div>
+      <div class="field" style="margin-bottom:1rem;">
+        <label style="display:block; font-size:0.8rem; color:var(--text-dim); margin-bottom:0.35rem;">Stream URL (.m3u8 or .mp4)</label>
+        <input type="text" id="pf-url" placeholder="https://v3.pkflx.com/hls/.../video_h264_1080p.m3u8" style="width:100%;">
+      </div>
 
-    <div id="progress" class="progress-container">
-      <div style="font-size:0.85rem;"><span class="spinner"></span><span id="progress-status">Downloading...</span></div>
-      <div class="progress-bar-outer"><div id="progress-bar" class="progress-bar-inner"></div></div>
-      <div class="progress-text">
-        <span id="progress-pct">0%</span>
-        <span id="progress-speed"></span>
+      <div style="margin-top:1rem;">
+        <button id="pf-download-btn" onclick="startPokeflixDownload()">Download</button>
+      </div>
+      <div id="pf-download-dir"></div>
+
+      <div id="pf-progress" class="progress-container">
+        <div style="font-size:0.85rem;"><span class="spinner"></span><span id="pf-progress-status">Downloading...</span></div>
+        <div class="progress-bar-outer"><div id="pf-progress-bar" class="progress-bar-inner"></div></div>
+        <div class="progress-text">
+          <span id="pf-progress-pct">0%</span>
+          <span id="pf-progress-speed"></span>
+        </div>
       </div>
     </div>
   </div>
@@ -740,6 +810,16 @@ let videoData = null;
 let currentMode = 'video+audio';
 let fileListTimer = null;
 let plexState = { filename: '', type: 'movie', tmdbId: null, tmdbTitle: '', tmdbYear: '', episodes: [] };
+
+// ---- Tabs ----
+
+function switchTab(el) {
+  const tab = el.dataset.tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === el));
+  document.querySelectorAll('.tab-pane').forEach(p => {
+    p.classList.toggle('active', p.id === 'pane-' + tab);
+  });
+}
 
 // ---- Download mode / quality ----
 
@@ -899,6 +979,70 @@ function startDownload() {
 
   es.onerror = function() {
     document.getElementById('progress-status').textContent = 'Connection lost';
+    btn.disabled = false;
+    es.close();
+  };
+}
+
+// ---- Pokeflix download ----
+
+function startPokeflixDownload() {
+  const title = document.getElementById('pf-title').value.trim();
+  const url = document.getElementById('pf-url').value.trim();
+  if (!title || !url) {
+    alert('Please enter both a title and a stream URL.');
+    return;
+  }
+
+  const btn = document.getElementById('pf-download-btn');
+  btn.disabled = true;
+
+  const prog = document.getElementById('pf-progress');
+  prog.classList.add('visible');
+  document.getElementById('pf-progress-bar').style.width = '0%';
+  document.getElementById('pf-progress-pct').textContent = '0%';
+  document.getElementById('pf-progress-speed').textContent = '';
+  document.getElementById('pf-progress-status').textContent = 'Starting download...';
+  document.getElementById('pf-download-dir').textContent = '';
+
+  const params = new URLSearchParams({url, title, referer: 'https://www.pokeflix.tv/'});
+  const es = new EventSource('/api/download-hls?' + params.toString());
+
+  es.onmessage = function(e) {
+    const data = JSON.parse(e.data);
+
+    if (data.status === 'downloading') {
+      document.getElementById('pf-progress-status').textContent = 'Downloading...';
+      if (data.percent != null) {
+        document.getElementById('pf-progress-bar').style.width = data.percent + '%';
+        document.getElementById('pf-progress-pct').textContent = data.percent.toFixed(1) + '%';
+      }
+      if (data.speed) {
+        document.getElementById('pf-progress-speed').textContent = data.speed;
+      }
+    } else if (data.status === 'merging') {
+      document.getElementById('pf-progress-status').textContent = 'Merging...';
+      document.getElementById('pf-progress-bar').style.width = '100%';
+      document.getElementById('pf-progress-pct').textContent = '100%';
+    } else if (data.status === 'done') {
+      document.getElementById('pf-progress-status').textContent = 'Complete!';
+      document.getElementById('pf-progress-bar').style.width = '100%';
+      document.getElementById('pf-progress-pct').textContent = '100%';
+      document.getElementById('pf-progress-speed').textContent = '';
+      document.getElementById('pf-download-dir').textContent = 'Saved to: ' + data.path;
+      btn.disabled = false;
+      es.close();
+      refreshFiles();
+      setTimeout(() => { prog.classList.remove('visible'); }, 3000);
+    } else if (data.status === 'error') {
+      document.getElementById('pf-progress-status').textContent = 'Error: ' + data.message;
+      btn.disabled = false;
+      es.close();
+    }
+  };
+
+  es.onerror = function() {
+    document.getElementById('pf-progress-status').textContent = 'Connection lost';
     btn.disabled = false;
     es.close();
   };
@@ -1364,6 +1508,73 @@ def api_download():
                 files = sorted(DOWNLOAD_DIR.iterdir(), key=lambda f: f.stat().st_mtime, reverse=True)
                 filename = files[0].name if files else "unknown"
 
+            yield f"data: {json.dumps({'status': 'done', 'filename': filename, 'path': str(DOWNLOAD_DIR / filename)})}\n\n"
+        else:
+            yield f"data: {json.dumps({'status': 'error', 'message': 'Download failed (exit code ' + str(proc.returncode) + ')'})}\n\n"
+
+    return Response(generate(), content_type="text/event-stream")
+
+
+@app.route("/api/download-hls")
+def api_download_hls():
+    """Download a direct stream URL (HLS .m3u8 or .mp4) using a custom title and Referer."""
+    url = request.args.get("url", "").strip()
+    title = request.args.get("title", "").strip()
+    referer = request.args.get("referer", "").strip()
+
+    if not url or not title:
+        return Response("data: " + json.dumps({"status": "error", "message": "Missing url or title"}) + "\n\n",
+                        content_type="text/event-stream")
+
+    safe_title = sanitize_filename(title)
+    if not safe_title:
+        return Response("data: " + json.dumps({"status": "error", "message": "Invalid title"}) + "\n\n",
+                        content_type="text/event-stream")
+
+    def generate():
+        output_tmpl = str(DOWNLOAD_DIR / f"{safe_title}.%(ext)s")
+        cmd = ["yt-dlp", "--newline", "--no-colors", "-o", output_tmpl]
+
+        if referer:
+            cmd += ["--referer", referer]
+
+        # Pokeflix m3u8s are single-rendition pre-merged streams
+        cmd += ["-f", "b", "--merge-output-format", "mp4"]
+        cmd.append(url)
+
+        proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+        )
+
+        filename = ""
+        for line in proc.stdout:
+            line = line.strip()
+            if not line:
+                continue
+
+            pct_match = re.search(r"(\d+\.?\d*)%", line)
+            speed_match = re.search(r"at\s+(\S+/s)", line)
+            dest_match = re.search(r"\[download\] Destination:\s*(.+)", line)
+            merge_match = re.search(r"\[Merger\]|Merging formats", line)
+
+            if dest_match:
+                filename = os.path.basename(dest_match.group(1))
+
+            if merge_match:
+                yield f"data: {json.dumps({'status': 'merging'})}\n\n"
+            elif pct_match:
+                pct = float(pct_match.group(1))
+                speed = speed_match.group(1) if speed_match else ""
+                yield f"data: {json.dumps({'status': 'downloading', 'percent': pct, 'speed': speed})}\n\n"
+
+        proc.wait()
+
+        if proc.returncode == 0:
+            if not filename:
+                # Fall back to our known title with the most likely extension
+                candidates = sorted(DOWNLOAD_DIR.glob(f"{safe_title}.*"),
+                                    key=lambda f: f.stat().st_mtime, reverse=True)
+                filename = candidates[0].name if candidates else f"{safe_title}.mp4"
             yield f"data: {json.dumps({'status': 'done', 'filename': filename, 'path': str(DOWNLOAD_DIR / filename)})}\n\n"
         else:
             yield f"data: {json.dumps({'status': 'error', 'message': 'Download failed (exit code ' + str(proc.returncode) + ')'})}\n\n"
