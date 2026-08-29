@@ -1472,10 +1472,14 @@ def api_download():
         )
 
         filename = ""
+        last_error = ""
         for line in proc.stdout:
             line = line.strip()
             if not line:
                 continue
+
+            if line.startswith("ERROR:") or line.startswith("WARNING:"):
+                last_error = line
 
             # Try to extract progress
             pct_match = re.search(r"(\d+\.?\d*)%", line)
@@ -1510,7 +1514,8 @@ def api_download():
 
             yield f"data: {json.dumps({'status': 'done', 'filename': filename, 'path': str(DOWNLOAD_DIR / filename)})}\n\n"
         else:
-            yield f"data: {json.dumps({'status': 'error', 'message': 'Download failed (exit code ' + str(proc.returncode) + ')'})}\n\n"
+            msg = last_error or f"Download failed (exit code {proc.returncode})"
+            yield f"data: {json.dumps({'status': 'error', 'message': msg})}\n\n"
 
     return Response(generate(), content_type="text/event-stream")
 
@@ -1547,10 +1552,14 @@ def api_download_hls():
         )
 
         filename = ""
+        last_error = ""
         for line in proc.stdout:
             line = line.strip()
             if not line:
                 continue
+
+            if line.startswith("ERROR:") or line.startswith("WARNING:"):
+                last_error = line
 
             pct_match = re.search(r"(\d+\.?\d*)%", line)
             speed_match = re.search(r"at\s+(\S+/s)", line)
@@ -1577,7 +1586,8 @@ def api_download_hls():
                 filename = candidates[0].name if candidates else f"{safe_title}.mp4"
             yield f"data: {json.dumps({'status': 'done', 'filename': filename, 'path': str(DOWNLOAD_DIR / filename)})}\n\n"
         else:
-            yield f"data: {json.dumps({'status': 'error', 'message': 'Download failed (exit code ' + str(proc.returncode) + ')'})}\n\n"
+            msg = last_error or f"Download failed (exit code {proc.returncode})"
+            yield f"data: {json.dumps({'status': 'error', 'message': msg})}\n\n"
 
     return Response(generate(), content_type="text/event-stream")
 
